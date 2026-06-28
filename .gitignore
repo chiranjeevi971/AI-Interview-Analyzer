@@ -1,0 +1,22 @@
+# Node
+node_modules/
+dist/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Environment Variables
+.env
+
+# Uploaded Files
+uploads/
+resumes/
+
+# VS Code
+.vscode/
+
+# OS Files
+.DS_Store
+Thumbs.db
