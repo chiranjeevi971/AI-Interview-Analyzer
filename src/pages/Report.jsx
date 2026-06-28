@@ -1,10 +1,11 @@
 import { Link, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { generatePDF } from "../utils/pdfGenerator";
 
 function Report() {
   const location = useLocation();
   const report = location.state;
+  const hasSavedRef = useRef(false);
 
   const aiFeedback = report?.aiFeedback;
 
@@ -37,11 +38,14 @@ function Report() {
   };
 
   useEffect(() => {
-    if (!report) return;
+    if (!report || hasSavedRef.current) return;
+
+    hasSavedRef.current = true;
 
     const saveReport = async () => {
+      const token = localStorage.getItem("token");
+
       const newReport = {
-        id: Date.now(),
         question: report.question,
         transcript: report.transcript,
         fillerWords: report.fillerWords,
@@ -58,24 +62,17 @@ function Report() {
         date: new Date().toLocaleString(),
       };
 
-      const savedReports =
-        JSON.parse(localStorage.getItem("interviewReports")) || [];
-
-      localStorage.setItem(
-        "interviewReports",
-        JSON.stringify([newReport, ...savedReports])
-      );
-
       try {
         await fetch("http://127.0.0.1:8000/save-report", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(newReport),
         });
       } catch (error) {
-        console.log("MongoDB save failed, but localStorage saved.");
+        console.log("Report save failed.");
       }
     };
 

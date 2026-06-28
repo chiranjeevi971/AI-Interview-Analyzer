@@ -8,7 +8,10 @@ from bson import ObjectId
 from ai_service import evaluate_answer, generate_interview_questions
 from speech_service import transcribe_audio
 from resume_service import extract_resume_text
-from database import reports_collection
+from database import reports_collection, users_collection
+from auth_service import hash_password, verify_password, create_access_token, decode_access_token
+from models import SignupRequest, LoginRequest
+from fastapi import FastAPI, UploadFile, File, Form, Header
 
 app = FastAPI()
 
@@ -61,11 +64,94 @@ def calculate_confidence_score(transcript, total_filler_words):
         score += 5
 
     return max(0, min(score, 100))
+async def get_current_user(authorization: str):
+    if not authorization:
+        return None
+
+    try:
+        token = authorization.replace("Bearer ", "")
+        payload = decode_access_token(token)
+        return payload
+    except Exception:
+        return None
 
 
 @app.get("/")
 def home():
     return {"message": "AI Interview Analyzer Backend Running"}
+
+
+@app.post("/signup")
+async def signup(user: SignupRequest):
+    existing_user = await users_collection.find_one({"email": user.email})
+
+    if existing_user:
+        return {
+            "success": False,
+            "message": "User already exists with this email",
+        }
+
+    hashed_password = hash_password(user.password)
+
+    new_user = {
+        "name": user.name,
+        "email": user.email,
+        "password": hashed_password,
+        "created_at": datetime.utcnow().isoformat(),
+    }
+
+    result = await users_collection.insert_one(new_user)
+
+    token = create_access_token({
+        "user_id": str(result.inserted_id),
+        "email": user.email,
+    })
+
+    return {
+        "success": True,
+        "message": "Signup successful",
+        "token": token,
+        "user": {
+            "id": str(result.inserted_id),
+            "name": user.name,
+            "email": user.email,
+        },
+    }
+
+
+@app.post("/login")
+async def login(user: LoginRequest):
+    existing_user = await users_collection.find_one({"email": user.email})
+
+    if not existing_user:
+        return {
+            "success": False,
+            "message": "Invalid email or password",
+        }
+
+    password_valid = verify_password(user.password, existing_user["password"])
+
+    if not password_valid:
+        return {
+            "success": False,
+            "message": "Invalid email or password",
+        }
+
+    token = create_access_token({
+        "user_id": str(existing_user["_id"]),
+        "email": existing_user["email"],
+    })
+
+    return {
+        "success": True,
+        "message": "Login successful",
+        "token": token,
+        "user": {
+            "id": str(existing_user["_id"]),
+            "name": existing_user["name"],
+            "email": existing_user["email"],
+        },
+    }
 
 
 @app.post("/upload-resume")
@@ -191,44 +277,83 @@ async def upload_audio(
 
 
 @app.post("/save-report")
-async def save_report(report: dict):
+async def save_report(report: dict, authorization: str = Header(None)):
+    current_user = await get_current_user(authorization)
+
+    if not current_user:
+        return {
+            "success": False,
+            "message": "Unauthorized"
+        }
+
+    report["user_id"] = current_user["user_id"]
     report["created_at"] = datetime.utcnow().isoformat()
 
     result = await reports_collection.insert_one(report)
 
     return {
+        "success": True,
         "message": "Report saved successfully",
         "report_id": str(result.inserted_id),
     }
 
 
 @app.get("/reports")
-async def get_reports():
+async def get_reports(authorization: str = Header(None)):
+    current_user = await get_current_user(authorization)
+
+    if not current_user:
+        return {
+            "success": False,
+            "reports": []
+        }
+
     reports = []
 
-    cursor = reports_collection.find().sort("created_at", -1)
+    cursor = reports_collection.find({
+        "user_id": current_user["user_id"]
+    }).sort("created_at", -1)
 
     async for report in cursor:
         report["_id"] = str(report["_id"])
         reports.append(report)
 
-    return {"reports": reports}
+    return {
+        "success": True,
+        "reports": reports
+    }
 
 
 @app.delete("/reports/{report_id}")
-async def delete_report(report_id: str):
+async def delete_report(report_id: str, authorization: str = Header(None)):
+    current_user = await get_current_user(authorization)
+
+    if not current_user:
+        return {
+            "success": False,
+            "message": "Unauthorized"
+        }
+
     try:
         result = await reports_collection.delete_one({
-            "_id": ObjectId(report_id)
+            "_id": ObjectId(report_id),
+            "user_id": current_user["user_id"]
         })
 
         if result.deleted_count == 1:
-            return {"message": "Report deleted successfully"}
+            return {
+                "success": True,
+                "message": "Report deleted successfully"
+            }
 
-        return {"message": "Report not found"}
+        return {
+            "success": False,
+            "message": "Report not found"
+        }
 
     except Exception as e:
         return {
+            "success": False,
             "message": "Invalid report id or delete failed",
             "error": str(e)
         }

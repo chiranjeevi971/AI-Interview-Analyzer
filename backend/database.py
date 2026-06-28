@@ -10,4 +10,5 @@ client = AsyncIOMotorClient(MONGO_URI)
 
 db = client["ai_interview_analyzer"]
 
+users_collection = db["users"]
 reports_collection = db["interview_reports"]

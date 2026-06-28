@@ -1,73 +1,149 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-function Signup() {
+function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
 
-  const handleSignup = (e) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+
+    setError("");
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (name === "" || email === "" || password === "") {
-      alert("Please fill all fields");
+    setLoading(true);
+    setError("");
+
+    if (!formData.email || !formData.password) {
+      setError("Please enter email and password.");
+      setLoading(false);
       return;
     }
 
-    navigate("/dashboard");
+    try {
+      const result = await login(
+        formData.email,
+        formData.password
+      );
+
+      if (result.success) {
+        navigate("/dashboard");
+      } else {
+        setError(result.message || "Login failed.");
+      }
+    } catch (err) {
+      setError("Unable to connect to the server.");
+    }
+
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-6">
-      <form
-        onSubmit={handleSignup}
-        className="bg-white p-8 rounded-xl shadow-md w-full max-w-md"
-      >
-        <h2 className="text-2xl font-bold mb-2 text-center">Create Account</h2>
+    <div className="min-h-screen bg-gray-100 flex justify-center items-center px-6">
+      <div className="bg-white w-full max-w-md rounded-2xl shadow-sm border p-8">
 
-        <p className="text-gray-500 text-center mb-6">
-          Start your AI mock interview journey
-        </p>
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold">
+            Welcome Back
+          </h1>
 
-        <input
-          type="text"
-          placeholder="Full name"
-          className="w-full border border-gray-300 p-3 rounded-lg mb-4 outline-none focus:border-blue-600"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+          <p className="text-gray-500 mt-2">
+            Login to continue your interview practice.
+          </p>
+        </div>
 
-        <input
-          type="email"
-          placeholder="Email address"
-          className="w-full border border-gray-300 p-3 rounded-lg mb-4 outline-none focus:border-blue-600"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        {error && (
+          <div className="bg-red-100 border border-red-300 text-red-600 rounded-lg p-3 mb-5">
+            {error}
+          </div>
+        )}
 
-        <input
-          type="password"
-          placeholder="Password"
-          className="w-full border border-gray-300 p-3 rounded-lg mb-4 outline-none focus:border-blue-600"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <form onSubmit={handleSubmit} className="space-y-5">
 
-        <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700">
-          Signup
-        </button>
+          <div>
+            <label className="block mb-2 font-medium">
+              Email
+            </label>
 
-        <p className="text-center mt-5 text-sm text-gray-600">
-          Already have an account?{" "}
-          <Link to="/login" className="text-blue-600 font-medium">
-            Login
+            <input
+              type="email"
+              name="email"
+              placeholder="Enter your email"
+              value={formData.email}
+              onChange={handleChange}
+              className="w-full border rounded-lg p-3 outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block mb-2 font-medium">
+              Password
+            </label>
+
+            <input
+              type="password"
+              name="password"
+              placeholder="Enter your password"
+              value={formData.password}
+              onChange={handleChange}
+              className="w-full border rounded-lg p-3 outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg p-3 font-semibold transition"
+          >
+            {loading ? "Logging in..." : "Login"}
+          </button>
+
+        </form>
+
+        <div className="text-center mt-6">
+
+          <p className="text-gray-600">
+            Don't have an account?
+          </p>
+
+          <Link
+            to="/signup"
+            className="text-blue-600 font-semibold hover:underline"
+          >
+            Create Account
           </Link>
-        </p>
-      </form>
+
+        </div>
+
+        <div className="text-center mt-4">
+
+          <Link
+            to="/"
+            className="text-gray-500 hover:text-blue-600"
+          >
+            ← Back to Home
+          </Link>
+
+        </div>
+
+      </div>
     </div>
   );
 }
 
-export default Signup;
+export default Login;

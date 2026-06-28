@@ -14,3 +14,5 @@ pypdf
 
 motor
 pymongo
+passlib[bcrypt]
+python-jose

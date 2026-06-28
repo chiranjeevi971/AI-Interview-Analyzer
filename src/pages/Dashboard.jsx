@@ -1,21 +1,28 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 
 function Dashboard() {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchReports = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/reports");
-      const data = await response.json();
+      const token = localStorage.getItem("token");
 
+      const response = await fetch("http://127.0.0.1:8000/reports", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
       setReports(data.reports || []);
     } catch (error) {
-      const localReports =
-        JSON.parse(localStorage.getItem("interviewReports")) || [];
-
-      setReports(localReports);
+      setReports([]);
     } finally {
       setLoading(false);
     }
@@ -25,6 +32,11 @@ function Dashboard() {
     fetchReports();
   }, []);
 
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
   const deleteReport = async (reportId) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this report?"
@@ -33,8 +45,13 @@ function Dashboard() {
     if (!confirmDelete) return;
 
     try {
+      const token = localStorage.getItem("token");
+
       await fetch(`http://127.0.0.1:8000/reports/${reportId}`, {
         method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       setReports((prevReports) =>
@@ -73,12 +90,12 @@ function Dashboard() {
           AI Interview Analyzer
         </h1>
 
-        <Link
-          to="/"
+        <button
+          onClick={handleLogout}
           className="text-sm text-gray-600 hover:text-blue-600 font-medium"
         >
           Logout
-        </Link>
+        </button>
       </nav>
 
       <main className="p-8 max-w-7xl mx-auto">
@@ -88,7 +105,7 @@ function Dashboard() {
               Welcome back 👋
             </h2>
             <p className="text-gray-600 mt-2">
-              Reports are loaded from MongoDB.
+              Your private interview reports are loaded from MongoDB.
             </p>
           </div>
 
@@ -102,7 +119,7 @@ function Dashboard() {
 
         {loading ? (
           <div className="bg-white rounded-2xl p-8 border shadow-sm">
-            <p className="text-gray-600">Loading reports from MongoDB...</p>
+            <p className="text-gray-600">Loading your reports...</p>
           </div>
         ) : (
           <>
@@ -110,38 +127,24 @@ function Dashboard() {
               <StatCard title="Total Interviews" value={totalInterviews} />
               <StatCard title="Average Score" value={`${averageScore}%`} />
               <StatCard title="Best Score" value={`${bestScore}%`} />
-              <StatCard
-                title="Latest Confidence"
-                value={`${latestConfidence}%`}
-              />
-              <StatCard
-                title="Latest Eye Contact"
-                value={`${latestEyeContact}%`}
-              />
+              <StatCard title="Latest Confidence" value={`${latestConfidence}%`} />
+              <StatCard title="Latest Eye Contact" value={`${latestEyeContact}%`} />
             </div>
 
             <div className="grid lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border">
-                <h3 className="text-xl font-bold mb-4">
-                  Performance Overview
-                </h3>
+                <h3 className="text-xl font-bold mb-4">Performance Overview</h3>
 
                 {reports.length === 0 ? (
                   <p className="text-gray-600 text-sm">
-                    Complete an interview to see your MongoDB saved reports.
+                    Complete an interview to see your saved reports.
                   </p>
                 ) : (
                   <div className="space-y-5">
                     <ScoreBar label="Average Score" value={averageScore} />
                     <ScoreBar label="Best Score" value={bestScore} />
-                    <ScoreBar
-                      label="Latest Confidence"
-                      value={latestConfidence}
-                    />
-                    <ScoreBar
-                      label="Latest Eye Contact"
-                      value={latestEyeContact}
-                    />
+                    <ScoreBar label="Latest Confidence" value={latestConfidence} />
+                    <ScoreBar label="Latest Eye Contact" value={latestEyeContact} />
                   </div>
                 )}
               </div>
@@ -164,7 +167,7 @@ function Dashboard() {
               {reports.length === 0 ? (
                 <div className="border rounded-xl p-6 text-center bg-gray-50">
                   <p className="text-gray-600 mb-4">
-                    No reports found in MongoDB.
+                    No private reports found.
                   </p>
 
                   <Link
