@@ -14,5 +14,6 @@ pypdf
 
 motor
 pymongo
-passlib[bcrypt]
+passlib
+bcrypt==3.2.2
 python-jose
