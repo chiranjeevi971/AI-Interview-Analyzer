@@ -10,3 +10,8 @@ class SignupRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class CodeExecutionRequest(BaseModel):
+    language: str
+    code: str

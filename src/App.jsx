@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import InterviewSetup from "./pages/InterviewSetup";
 import InterviewRoom from "./pages/InterviewRoom";
 import Report from "./pages/Report";
+import CodingInterviewRoom from "./pages/CodingInterviewRoom";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
@@ -89,6 +90,15 @@ function AppRoutes() {
       />
 
       <Route
+        path="/coding-interview"
+        element={
+          <ProtectedRoute>
+            <CodingInterviewRoom />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/report"
         element={
           <ProtectedRoute>
@@ -103,9 +113,7 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <AppRoutes />
     </AuthProvider>
   );
 }

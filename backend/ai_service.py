@@ -8,7 +8,9 @@ load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 
-def evaluate_answer(question: str, transcript: str):
+def evaluate_answer(question: str, transcript: str, code: str = None):
+    code_section = f"\nCandidate Code:\n{code}\n" if code else ""
+    
     prompt = f"""
 You are an AI interview evaluator.
 
@@ -17,9 +19,9 @@ Evaluate the candidate answer.
 Question:
 {question}
 
-Candidate Answer:
+Candidate Answer (Speech):
 {transcript}
-
+{code_section}
 Return only valid JSON in this format:
 {{
   "technical_score": 0,
@@ -27,7 +29,8 @@ Return only valid JSON in this format:
   "confidence_score": 0,
   "strengths": [],
   "weaknesses": [],
-  "suggestions": []
+  "suggestions": [],
+  "tone": "Determined by AI (e.g. Confident, Hesitant, Nervous, Enthusiastic)"
 }}
 """
 
@@ -47,7 +50,8 @@ Return only valid JSON in this format:
             "confidence_score": 70,
             "strengths": ["Answer was attempted."],
             "weaknesses": ["Could not parse detailed AI response."],
-            "suggestions": ["Try giving a clearer and more structured answer."]
+            "suggestions": ["Try giving a clearer and more structured answer."],
+            "tone": "Unknown"
         }
 
 

@@ -1,62 +1,118 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
 
-  const handleLogin = (e) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+
+    setError("");
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (email === "" || password === "") {
-      alert("Please fill all fields");
+    setLoading(true);
+    setError("");
+
+    if (!formData.email || !formData.password) {
+      setError("Please enter email and password.");
+      setLoading(false);
       return;
     }
 
-    navigate("/dashboard");
+    try {
+      const result = await login(formData.email, formData.password);
+
+      if (result.success) {
+        navigate("/dashboard");
+      } else {
+        setError(result.message || "Login failed.");
+      }
+    } catch (err) {
+      setError("Unable to connect to the server.");
+    }
+
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-6">
-      <form
-        onSubmit={handleLogin}
-        className="bg-white p-8 rounded-xl shadow-md w-full max-w-md"
-      >
-        <h2 className="text-2xl font-bold mb-2 text-center">Welcome Back</h2>
+    <div className="min-h-screen relative flex justify-center items-center px-6 overflow-hidden">
+      <div className="absolute top-0 right-0 w-[50%] h-[50%] bg-cyan-600/20 blur-[120px] rounded-full animate-float"></div>
+      <div className="absolute bottom-0 left-0 w-[50%] h-[50%] bg-violet-600/20 blur-[120px] rounded-full animate-float" style={{ animationDelay: '2s' }}></div>
 
-        <p className="text-gray-500 text-center mb-6">
-          Login to continue your interview practice
-        </p>
+      <div className="glass-panel w-full max-w-md rounded-3xl p-8 relative z-10 border-t-cyan-500/30 border-t-2">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-extrabold text-slate-100">Welcome Back</h1>
+          <p className="text-slate-400 mt-2">
+            Login to continue your interview practice.
+          </p>
+        </div>
 
-        <input
-          type="email"
-          placeholder="Email address"
-          className="w-full border border-gray-300 p-3 rounded-lg mb-4 outline-none focus:border-blue-600"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/50 text-red-400 rounded-xl p-4 mb-6">
+            {error}
+          </div>
+        )}
 
-        <input
-          type="password"
-          placeholder="Password"
-          className="w-full border border-gray-300 p-3 rounded-lg mb-4 outline-none focus:border-blue-600"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block mb-2 font-medium text-slate-300">Email</label>
+            <input
+              type="email"
+              name="email"
+              placeholder="Enter your email"
+              value={formData.email}
+              onChange={handleChange}
+              className="glass-input w-full text-white"
+            />
+          </div>
 
-        <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700">
-          Login
-        </button>
+          <div>
+            <label className="block mb-2 font-medium text-slate-300">Password</label>
+            <input
+              type="password"
+              name="password"
+              placeholder="Enter your password"
+              value={formData.password}
+              onChange={handleChange}
+              className="glass-input w-full text-white"
+            />
+          </div>
 
-        <p className="text-center mt-5 text-sm text-gray-600">
-          New user?{" "}
-          <Link to="/signup" className="text-blue-600 font-medium">
-            Create account
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full btn-primary py-4 font-semibold text-lg mt-2"
+          >
+            {loading ? "Logging in..." : "Login"}
+          </button>
+        </form>
+
+        <div className="text-center mt-8">
+          <p className="text-slate-400">Don't have an account? <Link to="/signup" className="text-cyan-400 font-semibold hover:text-cyan-300 transition-colors">Create Account</Link></p>
+        </div>
+
+        <div className="text-center mt-6">
+          <Link to="/" className="text-slate-500 hover:text-cyan-400 transition-colors">
+            ← Back to Home
           </Link>
-        </p>
-      </form>
+        </div>
+      </div>
     </div>
   );
 }

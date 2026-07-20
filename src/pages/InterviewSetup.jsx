@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { API_URL } from "../config";
 
 function InterviewSetup() {
   const navigate = useNavigate();
@@ -18,6 +19,22 @@ function InterviewSetup() {
     duration: "30",
     language: "English",
   });
+
+  const templates = [
+    { name: "Google SWE", role: "Software Engineer", type: "Coding (DSA)", difficulty: "Hard", questions: "5" },
+    { name: "Amazon SDET", role: "Software Engineer", type: "Technical", difficulty: "Medium", questions: "6" },
+    { name: "Meta Frontend", role: "Frontend Developer", type: "Technical", difficulty: "Hard", questions: "5" },
+  ];
+
+  const applyTemplate = (template) => {
+    setFormData((prev) => ({
+      ...prev,
+      role: template.role,
+      type: template.type,
+      difficulty: template.difficulty,
+      questions: template.questions,
+    }));
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -45,7 +62,7 @@ function InterviewSetup() {
     uploadData.append("file", file);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/upload-resume", {
+      const response = await fetch(`${API_URL}/upload-resume`, {
         method: "POST",
         body: uploadData,
       });
@@ -69,7 +86,7 @@ function InterviewSetup() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/generate-questions", {
+      const response = await fetch(`${API_URL}/generate-questions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -82,7 +99,7 @@ function InterviewSetup() {
 
       const data = await response.json();
 
-      navigate("/interview", {
+      navigate(formData.type === "Coding (DSA)" ? "/coding-interview" : "/interview", {
         state: {
           questions: data.questions,
           setup: formData,
@@ -98,7 +115,7 @@ function InterviewSetup() {
         "Where do you see yourself in five years?",
       ];
 
-      navigate("/interview", {
+      navigate(formData.type === "Coding (DSA)" ? "/coding-interview" : "/interview", {
         state: {
           questions: fallbackQuestions,
           setup: formData,
@@ -111,26 +128,28 @@ function InterviewSetup() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white border-b px-8 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-gray-900">
-          AI Interview Analyzer
+    <div className="min-h-screen bg-slate-900 text-slate-100 relative overflow-hidden">
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full animate-float"></div>
+
+      <nav className="glass-panel border-b-0 mx-4 mt-4 rounded-2xl px-8 py-4 flex justify-between items-center relative z-10">
+        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
+          Antigravity AI
         </h1>
 
         <Link
           to="/dashboard"
-          className="text-sm text-gray-600 hover:text-blue-600 font-medium"
+          className="text-sm text-slate-300 hover:text-cyan-400 font-medium transition-colors"
         >
           Back to Dashboard
         </Link>
       </nav>
 
-      <main className="max-w-6xl mx-auto p-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">
+      <main className="max-w-6xl mx-auto p-8 relative z-10">
+        <div className="mb-10">
+          <h2 className="text-3xl font-extrabold text-slate-100">
             Interview Setup
           </h2>
-          <p className="text-gray-600 mt-2">
+          <p className="text-slate-400 mt-2">
             Customize your mock interview and optionally upload your resume for
             personalized questions.
           </p>
@@ -139,8 +158,24 @@ function InterviewSetup() {
         <div className="grid lg:grid-cols-3 gap-8">
           <form
             onSubmit={handleStart}
-            className="lg:col-span-2 bg-white rounded-2xl shadow-sm border p-8"
+            className="lg:col-span-2 glass-panel p-8 rounded-3xl border-t-cyan-500/30 border-t-2"
           >
+            <div className="mb-8">
+              <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Quick Templates</p>
+              <div className="flex flex-wrap gap-3">
+                {templates.map((t) => (
+                  <button
+                    key={t.name}
+                    type="button"
+                    onClick={() => applyTemplate(t)}
+                    className="px-4 py-2 bg-slate-800/50 text-cyan-400 hover:bg-slate-700/50 rounded-xl text-sm font-medium border border-cyan-500/20 hover:border-cyan-500/50 transition-all"
+                  >
+                    {t.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="grid md:grid-cols-2 gap-6">
               <InputSelect
                 label="Select Role"
@@ -165,6 +200,7 @@ function InterviewSetup() {
                 onChange={handleChange}
                 options={[
                   "Technical",
+                  "Coding (DSA)",
                   "HR",
                   "Mixed",
                   "Project Based",
@@ -205,12 +241,12 @@ function InterviewSetup() {
               />
             </div>
 
-            <div className="mt-8 border border-dashed border-gray-300 rounded-2xl p-6 bg-gray-50">
-              <h3 className="font-semibold text-gray-900 mb-2">
+            <div className="mt-8 border border-dashed border-slate-700 rounded-2xl p-6 bg-slate-800/30">
+              <h3 className="font-semibold text-slate-200 mb-2">
                 Upload Resume PDF
               </h3>
 
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-slate-400 mb-4">
                 Optional: Upload your resume to generate personalized interview
                 questions from your skills and projects.
               </p>
@@ -219,7 +255,7 @@ function InterviewSetup() {
                 type="file"
                 accept="application/pdf"
                 onChange={handleResumeUpload}
-                className="w-full border border-gray-300 rounded-xl p-3 bg-white"
+                className="w-full glass-input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-500/10 file:text-cyan-400 hover:file:bg-cyan-500/20"
               />
 
               {resumeLoading && (
@@ -235,69 +271,66 @@ function InterviewSetup() {
               )}
 
               {resumeText && (
-                <div className="mt-4 bg-white border rounded-xl p-4">
-                  <p className="text-sm font-medium text-gray-700 mb-2">
+                <div className="mt-4 border border-cyan-500/20 bg-cyan-500/5 rounded-xl p-4">
+                  <p className="text-sm font-medium text-cyan-400 mb-2">
                     Resume text extracted successfully
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-slate-400">
                     {resumeText.slice(0, 250)}...
                   </p>
                 </div>
               )}
 
               {resumeError && (
-                <p className="text-sm text-red-600 mt-3">{resumeError}</p>
+                <p className="text-sm text-red-400 mt-3">{resumeError}</p>
               )}
             </div>
 
-            <div className="mt-8 bg-blue-50 border border-blue-100 rounded-2xl p-5">
-              <h3 className="font-semibold text-blue-900 mb-2">
+            <div className="mt-8 bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+              <h3 className="font-semibold text-slate-200 mb-2">
                 Selected Interview
               </h3>
 
-              <p className="text-sm text-blue-800">
+              <p className="text-sm text-cyan-400">
                 {formData.role} • {formData.type} • {formData.difficulty} •{" "}
                 {formData.questions} Questions • {formData.duration} Minutes
               </p>
 
               {resumeText && (
-                <p className="text-sm text-blue-800 mt-2">
-                  Resume-based question generation enabled.
+                <p className="text-sm text-emerald-400 mt-2 flex items-center gap-2">
+                  <span>✅</span> Resume-based question generation enabled.
                 </p>
               )}
             </div>
 
             <button
               disabled={loading || resumeLoading}
-              className="mt-8 w-full bg-blue-600 text-white py-4 rounded-xl font-semibold hover:bg-blue-700 disabled:bg-gray-400"
+              className="mt-8 w-full btn-primary py-4 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Generating Questions..." : "Start Interview"}
             </button>
           </form>
 
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border p-6">
-              <h3 className="text-xl font-bold mb-4">Before You Start</h3>
+            <div className="glass-panel p-6 rounded-3xl border-t-violet-500/30 border-t-2">
+              <h3 className="text-xl font-bold mb-4 text-slate-100">Before You Start</h3>
 
-              <ul className="space-y-3 text-sm text-gray-700">
-                <li>Make sure your microphone is working.</li>
-                <li>Sit in a quiet place.</li>
-                <li>Keep your camera at eye level.</li>
-                <li>Answer clearly and avoid rushing.</li>
-                <li>Try to explain with examples.</li>
+              <ul className="space-y-3 text-sm text-slate-400">
+                <li className="flex gap-2"><span className="text-cyan-400">🎤</span> Make sure your microphone is working.</li>
+                <li className="flex gap-2"><span className="text-violet-400">🤫</span> Sit in a quiet place.</li>
+                <li className="flex gap-2"><span className="text-blue-400">📷</span> Keep your camera at eye level.</li>
+                <li className="flex gap-2"><span className="text-emerald-400">🗣️</span> Answer clearly and avoid rushing.</li>
               </ul>
             </div>
 
-            <div className="bg-gray-900 text-white rounded-2xl p-6">
-              <h3 className="text-xl font-bold mb-3">What AI Will Analyze</h3>
+            <div className="glass-panel p-6 rounded-3xl border-t-emerald-500/30 border-t-2">
+              <h3 className="text-xl font-bold mb-4 text-slate-100">What AI Will Analyze</h3>
 
-              <div className="space-y-3 text-sm text-gray-300">
-                <p>Technical answer quality</p>
-                <p>Communication clarity</p>
-                <p>Filler words</p>
-                <p>Confidence level</p>
-                <p>Resume-based relevance</p>
-                <p>Improvement suggestions</p>
+              <div className="space-y-3 text-sm text-slate-400">
+                <p className="flex justify-between"><span>Technical Quality</span> <span className="text-cyan-400">●●●</span></p>
+                <p className="flex justify-between"><span>Communication</span> <span className="text-violet-400">●●●</span></p>
+                <p className="flex justify-between"><span>Filler Words</span> <span className="text-emerald-400">●●●</span></p>
+                <p className="flex justify-between"><span>Confidence</span> <span className="text-blue-400">●●●</span></p>
               </div>
             </div>
           </div>
@@ -310,7 +343,7 @@ function InterviewSetup() {
 function InputSelect({ label, name, value, onChange, options }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-slate-300 mb-2">
         {label}
       </label>
 
@@ -318,10 +351,10 @@ function InputSelect({ label, name, value, onChange, options }) {
         name={name}
         value={value}
         onChange={onChange}
-        className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-600"
+        className="glass-input w-full text-slate-100"
       >
         {options.map((option) => (
-          <option key={option} value={option}>
+          <option key={option} value={option} className="bg-slate-800 text-slate-100">
             {name === "duration" ? `${option} minutes` : option}
           </option>
         ))}

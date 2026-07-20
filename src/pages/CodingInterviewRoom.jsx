@@ -1,10 +1,12 @@
 import { useRef, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FaceMesh } from "@mediapipe/face_mesh";
-import FacialAnalyticsPanel from "../components/FacialAnalyticsPanel";
-import { API_URL } from "../config";
 
-function InterviewRoom() {
+import { API_URL } from "../config";
+import FacialAnalyticsPanel from "../components/FacialAnalyticsPanel";
+import Editor from "@monaco-editor/react";
+
+function CodingInterviewRoom() {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -49,6 +51,11 @@ function InterviewRoom() {
   const [headPoseStatus, setHeadPoseStatus] = useState("Centered");
   const [speakingAnalytics, setSpeakingAnalytics] = useState(null);
   const [answers, setAnswers] = useState([]);
+
+  // Coding State
+  const [code, setCode] = useState("# Write your Python code here\n\n");
+  const [codeOutput, setCodeOutput] = useState("");
+  const [isExecuting, setIsExecuting] = useState(false);
 
   useEffect(() => {
     const faceMesh = new FaceMesh({
@@ -306,6 +313,7 @@ function InterviewRoom() {
       const formData = new FormData();
       formData.append("file", audioBlob, "answer.webm");
       formData.append("question", questions[currentQuestion]);
+      formData.append("code", code);
 
       try {
         setTranscript("Uploading audio to backend...");
@@ -365,6 +373,7 @@ function InterviewRoom() {
       headPoseStatus,
       speakingAnalytics,
       duration: formatTime(seconds),
+      code,
     };
 
     if (currentQuestion < questions.length - 1) {
@@ -379,6 +388,24 @@ function InterviewRoom() {
       };
 
       navigate("/report", { state: reportData });
+    }
+  };
+
+  const runCode = async () => {
+    setIsExecuting(true);
+    setCodeOutput("Running...");
+    try {
+      const response = await fetch(`${API_URL}/execute-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language: "python", code }),
+      });
+      const data = await response.json();
+      setCodeOutput(data.output);
+    } catch (err) {
+      setCodeOutput("Failed to connect to execution server.");
+    } finally {
+      setIsExecuting(false);
     }
   };
 
@@ -400,9 +427,10 @@ function InterviewRoom() {
         </Link>
       </nav>
 
-      <main className="max-w-7xl mx-auto p-8 relative z-10">
-        <div className="grid lg:grid-cols-3 gap-8">
-          <section className="lg:col-span-2 space-y-6">
+      <main className="max-w-[1600px] mx-auto p-4 md:p-8 h-[calc(100vh-80px)] relative z-10">
+        <div className="grid lg:grid-cols-2 gap-8 h-full">
+          {/* Left Panel: Video & Interview Tools */}
+          <section className="space-y-6 overflow-y-auto pr-2 pb-10 custom-scrollbar">
             <div className="glass-panel p-8 rounded-3xl border-t-cyan-500/30 border-t-2">
               <div className="flex justify-between items-center mb-6">
                 <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
@@ -613,67 +641,13 @@ function InterviewRoom() {
                 </div>
               )}
             </div>
-          </section>
-
-          <aside className="space-y-6">
+            
             <div className="glass-panel p-6 rounded-3xl border-t-cyan-500/30 border-t-2">
               <h3 className="text-xl font-bold mb-4 text-slate-100">Session Status</h3>
-
               <div className="space-y-4 text-sm">
-                <InfoRow
-                  label="Status"
-                  value={isRecording ? "Recording..." : "Idle"}
-                  active={isRecording}
-                />
+                <InfoRow label="Status" value={isRecording ? "Recording..." : "Idle"} active={isRecording} />
                 <InfoRow label="Timer" value={formatTime(seconds)} />
-                <InfoRow
-                  label="Answered"
-                  value={`${currentQuestion} / ${questions.length}`}
-                />
-              </div>
-            </div>
-
-            <div className="glass-panel p-6 rounded-3xl border-t-violet-500/30 border-t-2">
-              <h3 className="text-xl font-bold mb-4 text-slate-100">Live Analysis</h3>
-
-              <div className="space-y-4 text-sm">
-                <InfoRow
-                  label="Speech-to-text"
-                  value={transcript ? "Completed" : "Pending"}
-                />
-                <InfoRow
-                  label="Speaking Pace"
-                  value={speakingAnalytics?.speaking_pace || "Pending"}
-                />
-                <InfoRow
-                  label="WPM"
-                  value={
-                    speakingAnalytics?.words_per_minute
-                      ? `${speakingAnalytics.words_per_minute}`
-                      : "Pending"
-                  }
-                />
-                <InfoRow
-                  label="Filler words"
-                  value={totalFillerWords > 0 ? totalFillerWords : "Pending"}
-                />
-                <InfoRow
-                  label="Confidence"
-                  value={
-                    confidenceScore !== null
-                      ? `${confidenceScore}/100`
-                      : "Pending"
-                  }
-                />
-                <InfoRow label="Eye Contact" value={`${eyeContactScore}/100`} />
-                <InfoRow
-                  label="AI Feedback"
-                  value={aiFeedback ? "Completed" : "Pending"}
-                />
-                <InfoRow
-                  label="Detected Tone"
-                  value={aiFeedback?.tone || "Pending"}
-                />
+                <InfoRow label="Answered" value={`${currentQuestion} / ${questions.length}`} />
               </div>
             </div>
 
@@ -683,14 +657,42 @@ function InterviewRoom() {
               smileScore={smileScore}
               headPoseStatus={headPoseStatus}
             />
+          </section>
 
-            <div className="bg-gradient-to-br from-cyan-600/20 to-blue-600/20 border border-cyan-500/30 rounded-3xl p-6 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-cyan-500/20 blur-2xl rounded-full"></div>
-              <h3 className="text-xl font-bold mb-3 text-cyan-400 flex items-center gap-2"><span>💡</span> Interview Tip</h3>
-              <p className="text-sm text-cyan-100/80 leading-relaxed relative z-10">
-                Look near the camera, speak clearly, and maintain a normal
-                speaking pace.
-              </p>
+          {/* Right Panel: Code Editor */}
+          <aside className="space-y-4 flex flex-col h-[calc(100vh-140px)]">
+            <div className="flex justify-between items-center glass-panel rounded-t-3xl px-6 py-4 border-b border-slate-700/50">
+              <h3 className="text-slate-100 font-semibold flex items-center gap-2"><span>💻</span> Python Environment</h3>
+              <button
+                onClick={runCode}
+                disabled={isExecuting}
+                className="btn-success px-6 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isExecuting ? "Running..." : <><span>▶</span> Run Code</>}
+              </button>
+            </div>
+            
+            <div className="flex-1 border-x border-slate-700/50 overflow-hidden bg-[#1e1e1e]">
+              <Editor
+                height="100%"
+                defaultLanguage="python"
+                theme="vs-dark"
+                value={code}
+                onChange={(value) => setCode(value || "")}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 15,
+                  padding: { top: 20 },
+                  fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                  smoothScrolling: true,
+                  cursorBlinking: "smooth",
+                }}
+              />
+            </div>
+
+            <div className="h-56 glass-panel rounded-b-3xl p-5 overflow-y-auto font-mono text-sm shadow-inner border-t border-slate-700/50">
+              <p className="text-slate-500 mb-3 flex items-center gap-2"><span>🔍</span> Console Output</p>
+              <pre className="whitespace-pre-wrap text-emerald-400">{codeOutput || "Run your code to see the output here."}</pre>
             </div>
           </aside>
         </div>
@@ -698,7 +700,6 @@ function InterviewRoom() {
     </div>
   );
 }
-
 function InfoRow({ label, value, active }) {
   return (
     <div className="flex justify-between gap-4 border-b border-slate-700/30 pb-2 last:border-0 last:pb-0">
@@ -782,4 +783,4 @@ function FeedbackList({ title, items, icon, color }) {
   );
 }
 
-export default InterviewRoom;
+export default CodingInterviewRoom;

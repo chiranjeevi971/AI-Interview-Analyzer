@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Header
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import re
@@ -10,8 +10,10 @@ from speech_service import transcribe_audio
 from resume_service import extract_resume_text
 from database import reports_collection, users_collection
 from auth_service import hash_password, verify_password, create_access_token, decode_access_token
-from models import SignupRequest, LoginRequest
-from fastapi import FastAPI, UploadFile, File, Form, Header
+from models import SignupRequest, LoginRequest, CodeExecutionRequest
+import subprocess
+import tempfile
+
 
 app = FastAPI()
 
@@ -212,7 +214,8 @@ async def generate_questions(data: dict):
 @app.post("/upload-audio")
 async def upload_audio(
     file: UploadFile = File(...),
-    question: str = Form(...)
+    question: str = Form(...),
+    code: str = Form(None)
 ):
     file_path = os.path.join(UPLOAD_FOLDER, file.filename)
 
@@ -220,7 +223,7 @@ async def upload_audio(
         f.write(await file.read())
 
     try:
-        transcript = transcribe_audio(file_path)
+        transcript, speaking_analytics = transcribe_audio(file_path)
 
     except Exception as e:
         return {
@@ -228,6 +231,7 @@ async def upload_audio(
             "filename": file.filename,
             "question": question,
             "transcript": "",
+            "speaking_analytics": {},
             "filler_words": {},
             "total_filler_words": 0,
             "confidence_score": 0,
@@ -238,6 +242,7 @@ async def upload_audio(
                 "strengths": [],
                 "weaknesses": ["Speech-to-text failed."],
                 "suggestions": [str(e)],
+                "tone": "Unknown",
             },
         }
 
@@ -251,7 +256,8 @@ async def upload_audio(
     try:
         ai_feedback = evaluate_answer(
             question=question,
-            transcript=transcript
+            transcript=transcript,
+            code=code
         )
 
     except Exception as e:
@@ -262,6 +268,7 @@ async def upload_audio(
             "strengths": [],
             "weaknesses": ["AI feedback failed."],
             "suggestions": [str(e)],
+            "tone": "Unknown",
         }
 
     return {
@@ -269,6 +276,7 @@ async def upload_audio(
         "filename": file.filename,
         "question": question,
         "transcript": transcript,
+        "speaking_analytics": speaking_analytics,
         "filler_words": filler_words,
         "total_filler_words": total_filler_words,
         "confidence_score": confidence_score,
@@ -357,3 +365,38 @@ async def delete_report(report_id: str, authorization: str = Header(None)):
             "message": "Invalid report id or delete failed",
             "error": str(e)
         }
+
+
+@app.post("/execute-code")
+async def execute_code(request: CodeExecutionRequest):
+    if request.language.lower() not in ["python", "python3"]:
+        return {"success": False, "output": "Only Python is supported at this time."}
+
+    # Write code to a temporary file and execute it
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as temp_file:
+            temp_file.write(request.code)
+            temp_file_path = temp_file.name
+
+        # Execute the python script with a timeout of 5 seconds to prevent infinite loops
+        result = subprocess.run(
+            ["python", temp_file_path],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        # Cleanup
+        os.unlink(temp_file_path)
+
+        output = result.stdout
+        if result.stderr:
+            output += f"\nError:\n{result.stderr}"
+
+        return {"success": True, "output": output}
+
+    except subprocess.TimeoutExpired:
+        os.unlink(temp_file_path)
+        return {"success": False, "output": "Error: Execution timed out (infinite loop?)."}
+    except Exception as e:
+        return {"success": False, "output": f"Error: {str(e)}"}
