@@ -60,7 +60,7 @@ function CodingInterviewRoom() {
   useEffect(() => {
     const faceMesh = new FaceMesh({
       locateFile: (file) =>
-        `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+        `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`,
     });
 
     faceMesh.setOptions({
